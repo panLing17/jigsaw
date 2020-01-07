@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>拖动滑块验证</title>
+  <style>
+    .block {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+
+    .sliderContainer {
+      position: relative;
+      text-align: center;
+      width: 310px;
+      height: 40px;
+      line-height: 40px;
+      margin-top: 15px;
+      background: #f7f9fa;
+      color: #45494c;
+      border: 1px solid #e4e7eb;
+    }
+
+    .sliderContainer_active .slider {
+      height: 38px;
+      top: -1px;
+      border: 1px solid #1991FA;
+    }
+
+    .sliderContainer_active .sliderMask {
+      height: 38px;
+      border-width: 1px;
+    }
+
+    .sliderContainer_success .slider {
+      height: 38px;
+      top: -1px;
+      border: 1px solid #52CCBA;
+      background-color: #52CCBA !important;
+    }
+
+    .sliderContainer_success .sliderMask {
+      height: 38px;
+      border: 1px solid #52CCBA;
+      background-color: #D2F4EF;
+    }
+
+    .sliderContainer_success .sliderIcon {
+      background-position: 0 0 !important;
+    }
+
+    .sliderContainer_fail .slider {
+      height: 38px;
+      top: -1px;
+      border: 1px solid #f57a7a;
+      background-color: #f57a7a !important;
+    }
+
+    .sliderContainer_fail .sliderMask {
+      height: 38px;
+      border: 1px solid #f57a7a;
+      background-color: #fce1e1;
+    }
+
+    .sliderContainer_fail .sliderIcon {
+      top: 14px;
+      background-position: 0 -82px !important;
+    }
+
+    .sliderContainer_active .sliderText,
+    .sliderContainer_success .sliderText,
+    .sliderContainer_fail .sliderText {
+      display: none;
+    }
+
+    .sliderMask {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 40px;
+      border: 0 solid #1991FA;
+      background: #D1E9FE;
+    }
+
+    .slider {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 40px;
+      height: 40px;
+      background: #fff;
+      box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      transition: background .2s linear;
+    }
+
+    .slider:hover {
+      background: #1991FA;
+    }
+
+    .slider:hover .sliderIcon {
+      background-position: 0 -13px;
+    }
+
+    .sliderIcon {
+      position: absolute;
+      top: 15px;
+      left: 13px;
+      width: 14px;
+      height: 12px;
+      background: url(http://cstaticdun.126.net//2.6.3/images/icon_light.f13cff3.png) 0 -26px;
+      background-size: 34px 471px;
+    }
+
+    .refreshIcon {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+      background: url(http://cstaticdun.126.net//2.6.3/images/icon_light.f13cff3.png) 0 -437px;
+      background-size: 34px 471px;
+    }
+  </style>
+
+</head>
+
+<body>
+  <div id="captcha" style="width:310px"></div>
+  <script>
+    (function (window) {
+      var l = 42, // 滑块边长
+        r = 9, // 滑块半径
+        w = 310, // canvas宽度
+        h = 155, // canvas高度
+        PI = Math.PI
+      var L = l + r * 2 + 3 // 滑块实际边长
+
+      function getRandomNumberByRange(start, end) {
+        return Math.round(Math.random() * (end - start) + start)
+      }
+
+      function createCanvas(width, height) {
+        var canvas = createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        return canvas
+      }
+
+      function createImg(onload) {
+        var img = createElement('img')
+        img.onload = onload
+        img.onerror = function () {
+          img.src = getRandomImg()
+        }
+        var xhr
+        if (window.XMLHttpRequest) { // code for IE7+, Firefox, Chrome, Opera, Safari
+          xhr = new XMLHttpRequest();
+        } else { // code for IE6, IE5
+          xhr = new ActiveXObject("Microsoft.XMLHTTP");
+        }
+        xhr.open('get', getRandomImg(), true);
+        xhr.responseType = 'blob';
+        xhr.onload = function () {
+          if (this.status == 200) {
+            imgResponse = this.response;
+            //这里面可以直接通过URL的api将其转换，然后赋值给img.src
+            //也可以使用下面的preView方法将其转换成base64之后再赋值
+            img.src = URL.createObjectURL(this.response);
+          }
+        };
+        xhr.send();
+        
+        // img.crossOrigin = "Anonymous"
+        // img.setAttribute('crossOrigin', 'anonymous')
+        return img
+      }
+
+
+      function createElement(tagName, className) {
+        var elment = document.createElement(tagName)
+        elment.className = className
+        return elment
+      }
+
+      function addClass(tag, className) {
+        tag.classList.add(className)
+      }
+
+      function removeClass(tag, className) {
+        tag.classList.remove(className)
+      }
+
+      function getRandomImg() {
+        return 'https://picsum.photos/300/150/?image=' + getRandomNumberByRange(0, 1084)
+      }
+
+      function draw(ctx, x, y, operation) {
+        ctx.beginPath()
+        ctx.moveTo(x, y)
+        ctx.arc(x + l / 2, y - r + 2, r, 0.72 * PI, 2.26 * PI)
+        ctx.lineTo(x + l, y)
+        ctx.arc(x + l + r - 2, y + l / 2, r, 1.21 * PI, 2.78 * PI)
+        ctx.lineTo(x + l, y + l)
+        ctx.lineTo(x, y + l)
+        ctx.arc(x + r - 2, y + l / 2, r + 0.4, 2.76 * PI, 1.24 * PI, true)
+        ctx.lineTo(x, y)
+        ctx.lineWidth = 2
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'
+        ctx.stroke()
+        ctx[operation]()
+        // ctx.globalCompositeOperation = 'overlay'
+        ctx.globalCompositeOperation = 'source-out'
+      }
+
+      function sum(x, y) {
+        return x + y
+      }
+
+      function square(x) {
+        return x * x
+      }
+
+      function jigsaw(el, onSuccess, onFail, onRefresh) {
+        el.style.position = el.style.position || 'relative'
+        this.el = el
+        this.onSuccess = onSuccess
+        this.onFail = onFail
+        this.onRefresh = onRefresh
+      }
+      jigsaw.prototype.init = function () {
+        this.initDOM()
+        this.initImg()
+        this.bindEvents()
+      }
+      jigsaw.prototype.initDOM = function () {
+        var canvas = createCanvas(w, h) // 画布
+        var block = canvas.cloneNode(true) // 滑块
+        var sliderContainer = createElement('div', 'sliderContainer')
+        var refreshIcon = createElement('div', 'refreshIcon')
+        var sliderMask = createElement('div', 'sliderMask')
+        var slider = createElement('div', 'slider')
+        var sliderIcon = createElement('span', 'sliderIcon')
+        var text = createElement('span', 'sliderText')
+
+        block.className = 'block'
+        text.innerHTML = '向右滑动填充拼图'
+
+        var el = this.el
+        el.appendChild(canvas)
+        el.appendChild(refreshIcon)
+        el.appendChild(block)
+        slider.appendChild(sliderIcon)
+        sliderMask.appendChild(slider)
+        sliderContainer.appendChild(sliderMask)
+        sliderContainer.appendChild(text)
+        el.appendChild(sliderContainer)
+        this.canvas = canvas
+        this.block = block
+        this.sliderContainer = sliderContainer
+        this.refreshIcon = refreshIcon
+        this.slider = slider
+        this.sliderMask = sliderMask
+        this.sliderIcon = sliderIcon
+        this.text = text
+        this.canvasCtx = canvas.getContext('2d')
+        this.blockCtx = block.getContext('2d')
+      }
+      jigsaw.prototype.initImg = function () {
+        var _this = this
+        var img = createImg(function () {
+          _this.draw()
+          _this.canvasCtx.drawImage(img, 0, 0, w, h)
+          _this.blockCtx.drawImage(img, 0, 0, w, h)
+          var y = _this.y - r * 2 - 1
+          var ImageData = _this.blockCtx.getImageData(_this.x - 3, y, L, L)
+          _this.block.width = L
+          _this.blockCtx.putImageData(ImageData, 0, y)
+        })
+        this.img = img
+      }
+      jigsaw.prototype.draw = function () {
+        // 随机创建滑块的位置
+        this.x = getRandomNumberByRange(L + 10, w - (L + 10))
+        this.y = getRandomNumberByRange(10 + r * 2, h - (L + 10))
+        draw(this.canvasCtx, this.x, this.y, 'fill')
+        draw(this.blockCtx, this.x, this.y, 'clip')
+      }
+      jigsaw.prototype.clean = function () {
+        this.canvasCtx.clearRect(0, 0, w, h)
+        this.blockCtx.clearRect(0, 0, w, h)
+        this.block.width = w
+      }
+      jigsaw.prototype.bindEvents = function () {
+        this.el.onselectstart = function () {
+          return false
+        }
+        var _this = this
+        this.refreshIcon.onclick = function () {
+          _this.reset()
+          typeof _this.onRefresh === 'function' && _this.onRefresh()
+        }
+
+        var originX, originY, trail = [],
+          isMouseDown = false
+
+        var handleDragStart = function (e) {
+          originX = e.clientX || e.touches[0].clientX
+          originY = e.clientY || e.touches[0].clientY
+          isMouseDown = true
+        }
+
+        var handleDragMove = function (e) {
+          if (!isMouseDown) return false
+          var eventX = e.clientX || e.touches[0].clientX
+          var eventY = e.clientY || e.touches[0].clientY
+          var moveX = eventX - originX
+          var moveY = eventY - originY
+          if (moveX < 0 || moveX + 38 >= w) return false
+          _this.slider.style.left = moveX + 'px'
+          var blockLeft = (w - 40 - 20) / (w - 40) * moveX
+          _this.block.style.left = blockLeft + 'px'
+
+          addClass(_this.sliderContainer, 'sliderContainer_active')
+          _this.sliderMask.style.width = moveX + 'px'
+          trail.push(moveY)
+        }
+
+        var handleDragEnd = function (e) {
+          if (!isMouseDown) return false
+          isMouseDown = false
+          var eventX = e.clientX || e.changedTouches[0].clientX
+          if (eventX == originX) return false
+          removeClass(_this.sliderContainer, 'sliderContainer_active')
+          _this.trail = trail
+          var spliced = _this.verify().spliced,
+            verified = _this.verify().verified
+
+          if (spliced) {
+            if (verified) {
+              addClass(_this.sliderContainer, 'sliderContainer_success')
+              typeof _this.onSuccess === 'function' && _this.onSuccess()
+            } else {
+              addClass(_this.sliderContainer, 'sliderContainer_fail')
+              _this.text.innerHTML = '再试一次'
+              _this.reset()
+            }
+          } else {
+            addClass(_this.sliderContainer, 'sliderContainer_fail')
+            typeof _this.onFail === 'function' && _this.onFail()
+            setTimeout(function () {
+              _this.reset()
+            }, 1000)
+          }
+        }
+        this.slider.addEventListener('mousedown', handleDragStart)
+        this.slider.addEventListener('touchstart', handleDragStart)
+        document.addEventListener('mousemove', handleDragMove)
+        document.addEventListener('touchmove', handleDragMove)
+        document.addEventListener('mouseup', handleDragEnd)
+        document.addEventListener('touchend', handleDragEnd)
+      }
+      jigsaw.prototype.verify = function () {
+        var arr = this.trail // 拖动时y轴的移动距离
+        var average = arr.reduce(sum) / arr.length
+        var deviations = arr.map(function (x) {
+          return x - average
+        })
+        var stddev = Math.sqrt(deviations.map(square).reduce(sum) / arr.length)
+        var left = parseInt(this.block.style.left)
+        return {
+          spliced: Math.abs(left - this.x) < 10,
+          verified: stddev !== 0, // 简单验证下拖动轨迹，为零时表示Y轴上下没有波动，可能非人为操作
+        }
+      }
+      jigsaw.prototype.reset = function () {
+        this.sliderContainer.className = 'sliderContainer'
+        this.slider.style.left = 0
+        this.block.style.left = 0
+        this.sliderMask.style.width = 0
+        this.clean()
+
+        var _this = this
+        var xhr
+        if (window.XMLHttpRequest) { // code for IE7+, Firefox, Chrome, Opera, Safari
+          xhr = new XMLHttpRequest();
+        } else { // code for IE6, IE5
+          xhr = new ActiveXObject("Microsoft.XMLHTTP");
+        }
+        xhr.open('get', getRandomImg(), true);
+        xhr.responseType = 'blob';
+        xhr.onload = function () {
+          if (this.status == 200) {
+            imgResponse = this.response;
+            //这里面可以直接通过URL的api将其转换，然后赋值给img.src
+            //也可以使用下面的preView方法将其转换成base64之后再赋值
+            _this.img.src = URL.createObjectURL(this.response);
+          }
+        };
+        xhr.send();
+      }
+      window.jigsaw = {
+        init: function (el, onSuccess, onFail, onRefresh) {
+          return new jigsaw(el, onSuccess, onFail, onRefresh).init()
+        }
+      }
+    }(window))
+
+    window.onload = function () {
+      jigsaw.init(document.getElementById('captcha'),function(){
+        console.log('成功')
+      },
+      function(){
+        console.log('失败')
+      })
+    }
+  </script>
+</body>
+
+</html>
